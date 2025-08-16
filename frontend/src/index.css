@@ -1,0 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Puedes añadir estilos globales aquí si es necesario,
+   pero la mayoría de los estilos específicos de la aplicación
+   deben ir en App.css o en los componentes. */

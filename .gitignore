@@ -1,0 +1,23 @@
+# Archivos de la aplicación y Docker
+.env
+.env.local
+
+# Carpetas de dependencias de Node
+node_modules/
+frontend/node_modules/
+backend/node_modules/
+
+# Archivos de compilación y temporales
+frontend/dist/
+.DS_Store
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pids
+*.pid
+*.seed
+*.pid.lock
+/coverage
+.cache
+.vscode
