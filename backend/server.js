@@ -209,7 +209,7 @@ app.get('/api/public/tag-info/:tagId', async (req, res) => {
 });
 
 // Iniciar servidor
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;;
 app.listen(PORT, () => {
-    console.log(`Backend escuchando en http://localhost:${PORT}`);
+    console.log(`Backend escuchando en el puerto ${PORT}`);
 });
