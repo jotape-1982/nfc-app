@@ -1,0 +1,28 @@
+# Archivo: render.yaml
+services:
+  - type: web
+    name: nfc-app-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://nfc_database_ecyf_user:37rnnPbjVBLQFRF4qva6UjcAy9Jm9Ije@dpg-d2fti2gdl3ps73eku2i0-a.virginia-postgres.render.com/nfc_database_ecyf
+      - key: JWT_SECRET_KEY
+        value: super_secret_nfc_app_key_2025_final_fix_xyz
+
+  - type: web
+    name: nfc-app-frontend
+    env: static
+    plan: free
+    staticPublishPath: ./frontend/dist
+    buildCommand: npm install && npm run build
+    envVars:
+      - key: VITE_API_URL
+        value: /api
+
+  - type: postgres
+    name: nfc-database
+    databaseName: nfc_database_ecyf
+    user: nfc_database_ecyf_user
