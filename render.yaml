@@ -22,7 +22,7 @@ services:
       - key: VITE_API_URL
         value: /api
 
-  - type: database
+  - type: postgres
     name: nfc-database
     databaseName: nfc_database_ecyf
     user: nfc_database_ecyf_user
