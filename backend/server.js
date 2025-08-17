@@ -187,7 +187,7 @@ app.post('/api/tap-event', async (req, res) => {
         const ip_address = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
         const user_agent = req.headers['user-agent'];
         await pool.query(
-            'INSERT INTO nfc_taps (tag_id, ip_address, user_agent, location_data) VALUES ($1, $2, $3, $4)',
+            'INSERT INTO nfc_taps (tag_id, ip_address, user_agent, location_data, empresa_id) VALUES ($1, $2, $3, $4, $5)',
             [tagId, ip_address, user_agent, locationData]
         );
         res.status(201).json({ message: 'Tap registrado con éxito.' });
