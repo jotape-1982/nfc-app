@@ -178,6 +178,12 @@ app.get('/api/nfc-taps', authenticateToken, async (req, res) => {
 app.post('/api/tap-event', async (req, res) => {
     const { tagId, locationData, clientInfo } = req.body;
     try {
+        // **CAMBIO CLAVE:** Obtener el empresa_id del tag de la base de datos
+        const tagResult = await pool.query('SELECT empresa_id FROM nfc_tags WHERE tag_id = $1', [tagId]);
+        if (tagResult.rows.length === 0) {
+            return res.status(404).json({ message: 'Tag NFC no encontrado.' });
+        }
+        const empresa_id = tagResult.rows[0].empresa_id;
         const ip_address = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
         const user_agent = req.headers['user-agent'];
         await pool.query(
