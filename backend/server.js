@@ -188,7 +188,7 @@ app.post('/api/tap-event', async (req, res) => {
         const user_agent = req.headers['user-agent'];
         await pool.query(
             'INSERT INTO nfc_taps (tag_id, ip_address, user_agent, location_data, empresa_id) VALUES ($1, $2, $3, $4, $5)',
-            [tagId, ip_address, user_agent, locationData]
+            [tagId, ip_address, user_agent, locationData, empresa_id]
         );
         res.status(201).json({ message: 'Tap registrado con éxito.' });
     } catch (err) {
