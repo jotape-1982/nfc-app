@@ -50,6 +50,12 @@ if database_url.startswith("postgres://"):
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,       # verifica la conexión antes de usarla
+    'pool_recycle': 300,         # recicla conexiones cada 5 minutos
+    'pool_size': 5,
+    'max_overflow': 2,
+}
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'super_secret_nfc_app_key_2025_final_fix_xyz')
 
 db = SQLAlchemy(app)
