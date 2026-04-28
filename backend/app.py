@@ -1,49 +1,54 @@
-from flask import Flask, request, jsonify, redirect
+from flask import Flask, request, jsonify
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import create_access_token, JWTManager, jwt_required, get_jwt_identity, get_jwt
 from flask_sqlalchemy import SQLAlchemy
-from flask_cors import CORS
 import os
 import datetime
 import logging
-import json
 
 app = Flask(__name__)
 
 # -----------------------------------------------------------------------
-# CORS: acepta localhost (desarrollo) + dominios de Vercel y Railway
-# Para producción, reemplaza los dominios de ejemplo con los tuyos reales:
-#   - VERCEL_URL: ej. https://nfc-app.vercel.app
-#   - RAILWAY_URL: ej. https://nfc-app-frontend.up.railway.app (si usas Railway para frontend)
-# También puedes setear la variable de entorno ALLOWED_ORIGINS con una lista
-# separada por comas para no tocar el código.
+# CORS manual — más confiable que Flask-CORS en producción
+# Setea ALLOWED_ORIGINS en Railway con tu URL de Vercel
+# Ej: https://nfc-app-ten.vercel.app
 # -----------------------------------------------------------------------
 def get_allowed_origins():
     env_origins = os.environ.get('ALLOWED_ORIGINS', '')
     if env_origins:
-        return [o.strip() for o in env_origins.split(',') if o.strip()]
+        return [o.strip().rstrip('/') for o in env_origins.split(',') if o.strip()]
     return [
         "http://localhost:5173",
         "http://localhost:3000",
-        # Agrega aquí tu URL de Vercel una vez desplegado, ej:
-        # "https://nfc-app.vercel.app",
-        # "https://nfc-app-jotape.vercel.app",
     ]
 
-CORS(app, resources={
-    r"/api/*": {
-        "origins": get_allowed_origins(),
-        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        "allow_headers": ["Content-Type", "Authorization"],
-        "supports_credentials": True
-    }
-})
+@app.after_request
+def add_cors_headers(response):
+    origin = request.headers.get('Origin', '')
+    allowed = get_allowed_origins()
+    if origin in allowed:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
+
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+def handle_options(path):
+    response = app.make_default_options_response()
+    origin = request.headers.get('Origin', '')
+    allowed = get_allowed_origins()
+    if origin in allowed:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
 
 # -----------------------------------------------------------------------
-# Configuración — las variables de entorno se setean en Railway / Neon
+# Configuración
 # -----------------------------------------------------------------------
 database_url = os.environ.get('DATABASE_URL', 'postgresql://user:password@db:5432/nfc')
-# Neon entrega URLs con "postgres://" (SQLAlchemy necesita "postgresql://")
 if database_url.startswith("postgres://"):
     database_url = database_url.replace("postgres://", "postgresql://", 1)
 
@@ -133,7 +138,6 @@ class NfcTap(db.Model):
 # --- Rutas de Autenticación ---
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    app.logger.info(f"Received request for {request.path} with method {request.method}")
     data = request.get_json()
     nombre = data.get('nombre')
     email = data.get('email')
@@ -152,7 +156,6 @@ def register():
     new_user.set_password(password)
     db.session.add(new_user)
     db.session.commit()
-
     return jsonify({'message': 'Usuario creado con éxito'}), 201
 
 @app.route('/api/auth/login', methods=['POST'])
@@ -165,7 +168,6 @@ def login():
     user = User.query.filter_by(email=email).first()
     if user and user.check_password(password):
         empresa_id_for_token = int(user.empresa_id) if user.empresa_id is not None else None
-
         access_token = create_access_token(
             identity=str(user.id),
             additional_claims={
@@ -183,30 +185,26 @@ def login():
 # --- Helper JWT ---
 def get_user_info_from_jwt():
     try:
-        user_id_from_jwt = get_jwt_identity()
         claims = get_jwt()
-
         if not isinstance(claims, dict):
-            app.logger.error("Claims del JWT no es un diccionario.")
             return None, None, {"message": "Datos de sesión inválidos."}, 401
 
         empresa_id_raw = claims.get('empresa_id')
         rol = claims.get('rol')
 
         if empresa_id_raw is None:
-            app.logger.error("'empresa_id' no encontrada en los claims del JWT.")
             return None, None, {"message": "Datos de sesión inválidos: ID de empresa faltante."}, 401
 
         try:
             empresa_id = int(empresa_id_raw)
         except (TypeError, ValueError) as e:
-            app.logger.error(f"Error al convertir 'empresa_id' a entero: {e}")
+            app.logger.error(f"Error al convertir empresa_id: {e}")
             return None, None, {"message": "Datos de sesión inválidos: ID de empresa incorrecto."}, 401
 
         return empresa_id, rol, None, None
     except Exception as e:
-        app.logger.error(f"Error inesperado al obtener identidad del JWT: {e}", exc_info=True)
-        return None, None, {"message": "Error interno al procesar el token de sesión."}, 500
+        app.logger.error(f"Error inesperado en JWT: {e}", exc_info=True)
+        return None, None, {"message": "Error interno al procesar el token."}, 500
 
 # --- Rutas NFC Tags ---
 @app.route('/api/nfc-tags', methods=['GET'])
