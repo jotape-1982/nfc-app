@@ -1,23 +1,19 @@
-# Archivo: render.yaml
+# render.yaml actualizado - sin base de datos (usar Neon.tech para la BD)
+# El frontend se despliega por separado en Vercel
+
 services:
   - type: web
     name: nfc-app-backend
-    env: node
-    plan: free
-    buildCommand: npm install
-    startCommand: node server.js
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120
     envVars:
       - key: DATABASE_URL
-        value: postgres://avnadmin:AVNS_Ovm2E51S8aWVTpvyf-i@pg-1471beb2-nfc-tag.g.aivencloud.com:17937/defaultdb?sslmode=require
+        sync: false          # Lo ingresas manualmente desde Neon
       - key: JWT_SECRET_KEY
-        value: super_secret_nfc_app_key_2025_final_fix_xyz
-
-  - type: web
-    name: nfc-app-frontend
-    env: static
-    plan: free
-    staticPublishPath: ./frontend/dist
-    buildCommand: npm install && npm run build
-    envVars:
-      - key: VITE_API_URL
-        value: /api
+        generateValue: true  # Render genera uno automáticamente
+      - key: ALLOWED_ORIGINS
+        sync: false          # Ej: https://tu-app.vercel.app
+      - key: PYTHON_VERSION
+        value: 3.11.0
