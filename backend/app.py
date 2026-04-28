@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import create_access_token, JWTManager, jwt_required, get_jwt_identity, get_jwt
 from flask_sqlalchemy import SQLAlchemy
@@ -9,9 +9,7 @@ import logging
 app = Flask(__name__)
 
 # -----------------------------------------------------------------------
-# CORS manual — más confiable que Flask-CORS en producción
-# Setea ALLOWED_ORIGINS en Railway con tu URL de Vercel
-# Ej: https://nfc-app-ten.vercel.app
+# CORS manual
 # -----------------------------------------------------------------------
 def get_allowed_origins():
     env_origins = os.environ.get('ALLOWED_ORIGINS', '')
@@ -22,8 +20,7 @@ def get_allowed_origins():
         "http://localhost:3000",
     ]
 
-@app.after_request
-def add_cors_headers(response):
+def apply_cors(response):
     origin = request.headers.get('Origin', '')
     allowed = get_allowed_origins()
     if origin in allowed:
@@ -31,19 +28,18 @@ def add_cors_headers(response):
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
         response.headers['Access-Control-Allow-Credentials'] = 'true'
+        response.headers['Vary'] = 'Origin'
     return response
 
-@app.route('/api/<path:path>', methods=['OPTIONS'])
-def handle_options(path):
-    response = app.make_default_options_response()
-    origin = request.headers.get('Origin', '')
-    allowed = get_allowed_origins()
-    if origin in allowed:
-        response.headers['Access-Control-Allow-Origin'] = origin
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
-        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        response.headers['Access-Control-Allow-Credentials'] = 'true'
-    return response
+@app.before_request
+def handle_preflight():
+    if request.method == 'OPTIONS':
+        response = make_response('', 200)
+        return apply_cors(response)
+
+@app.after_request
+def add_cors_headers(response):
+    return apply_cors(response)
 
 # -----------------------------------------------------------------------
 # Configuración
@@ -66,22 +62,18 @@ app.logger.setLevel(logging.INFO)
 # --- Manejadores de Errores JWT ---
 @jwt.unauthorized_loader
 def unauthorized_response(callback):
-    app.logger.error(f"JWT Unauthorized Error: {callback}")
     return jsonify({"message": "Token de acceso faltante o inválido. Por favor, inicia sesión de nuevo."}), 401
 
 @jwt.invalid_token_loader
 def invalid_token_response(callback):
-    app.logger.error(f"JWT Invalid Token Error: {callback}")
     return jsonify({"message": "Token de acceso inválido o expirado. Por favor, inicia sesión de nuevo."}), 401
 
 @jwt.needs_fresh_token_loader
 def token_not_fresh_response(callback):
-    app.logger.error(f"JWT Token Not Fresh Error: {callback}")
     return jsonify({"message": "El token no es fresco. Por favor, inicia sesión de nuevo."}), 401
 
 @jwt.revoked_token_loader
 def revoked_token_response(callback):
-    app.logger.error(f"JWT Revoked Token Error: {callback}")
     return jsonify({"message": "El token ha sido revocado."}), 401
 
 # --- Modelos ---
@@ -160,7 +152,6 @@ def register():
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    app.logger.info(f"Received request for {request.path} with method {request.method}")
     data = request.get_json()
     email = data.get('email')
     password = data.get('password')
